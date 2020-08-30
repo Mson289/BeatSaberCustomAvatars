@@ -14,50 +14,89 @@
 //  You should have received a copy of the GNU General Public License
 //  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-using CustomAvatar.Avatar;
-using HarmonyLib;
-using System;
-using System.Reflection;
+using CustomAvatar.Configuration;
+using CustomAvatar.Tracking;
 using UnityEngine;
 
 namespace CustomAvatar.Utilities
 {
-    internal static class BeatSaberUtilities
+    internal class BeatSaberUtilities
     {
-        public static event Action<float> playerHeightChanged;
+        public static readonly float kDefaultPlayerEyeHeight = MainSettingsModelSO.kDefaultPlayerHeight - MainSettingsModelSO.kHeadPosToPlayerHeightOffset;
 
-        public static void ApplyPatches(Harmony harmony)
+        public Vector3 roomCenter => _mainSettingsModel.roomCenter;
+        public Quaternion roomRotation => Quaternion.Euler(0, _mainSettingsModel.roomRotation, 0);
+
+        private readonly MainSettingsModelSO _mainSettingsModel;
+        private readonly PlayerDataModel _playerDataModel;
+        private readonly Settings _settings;
+        private readonly VRPlatformHelper _vrPlatformHelper;
+        private readonly OpenVRHelper _openVRHelper;
+
+        internal BeatSaberUtilities(MainSettingsModelSO mainSettingsModel, PlayerDataModel playerDataModel, Settings settings, VRPlatformHelper vrPlatformHelper)
         {
-            PatchPlayerHeightProperty(harmony);
-            PatchMirrorRendererSO(harmony);
+            _mainSettingsModel = mainSettingsModel;
+            _playerDataModel = playerDataModel;
+            _settings = settings;
+            _vrPlatformHelper = vrPlatformHelper;
+            _openVRHelper = vrPlatformHelper.GetPrivateField<OpenVRHelper>("_openVRHeper");
+
         }
 
-        private static void PatchPlayerHeightProperty(Harmony harmony)
+        /// <summary>
+        /// Gets the current player's height, taking into account whether the floor is being moved with the room or not.
+        /// </summary>
+        public float GetRoomAdjustedPlayerEyeHeight()
         {
-            MethodInfo playerHeightSetter = typeof(PlayerSpecificSettings).GetProperty(nameof(PlayerSpecificSettings.playerHeight), BindingFlags.Public | BindingFlags.Instance).SetMethod;
-            HarmonyMethod postfixPatch = new HarmonyMethod(typeof(BeatSaberUtilities).GetMethod(nameof(OnPlayerHeightChanged), BindingFlags.NonPublic | BindingFlags.Static));
-        
-            harmony.Patch(playerHeightSetter, null, postfixPatch);
+            float playerEyeHeight = _playerDataModel.playerData.playerSpecificSettings.playerHeight - MainSettingsModelSO.kHeadPosToPlayerHeightOffset;
+
+            if (_settings.moveFloorWithRoomAdjust)
+            {
+                playerEyeHeight -= _mainSettingsModel.roomCenter.value.y;
+            }
+
+            return playerEyeHeight;
         }
 
-        private static void PatchMirrorRendererSO(Harmony harmony)
+        /// <summary>
+        /// Similar to <see cref="VRPlatformHelper.AdjustPlatformSpecificControllerTransform(UnityEngine.XR.XRNode, Transform, Vector3, Vector3)"/> except it returns a pose instead of adjusting a transform.
+        /// </summary>
+        public Pose GetPlatformSpecificControllerOffset(DeviceUse use)
         {
-            MethodInfo methodToPatch = typeof(MirrorRendererSO).GetMethod("CreateOrUpdateMirrorCamera", BindingFlags.NonPublic | BindingFlags.Instance);
-            HarmonyMethod postfixPatch = new HarmonyMethod(typeof(BeatSaberUtilities).GetMethod(nameof(CreateOrUpdateMirrorCamera), BindingFlags.NonPublic | BindingFlags.Static));
+            if (use != DeviceUse.LeftHand && use != DeviceUse.RightHand) return Pose.identity;
 
-            harmony.Patch(methodToPatch, null, postfixPatch);
-        }
+            Vector3 position = _mainSettingsModel.controllerPosition;
+            Vector3 rotation = _mainSettingsModel.controllerRotation;
 
-        private static void OnPlayerHeightChanged(float value)
-        {
-            playerHeightChanged?.Invoke(value);
-        }
+            if (_vrPlatformHelper.vrPlatformSDK == VRPlatformHelper.VRPlatformSDK.Oculus)
+            {
+                rotation += new Vector3(-40f, 0f, 0f);
+                position += new Vector3(0f, 0f, 0.055f);
+            }
+            else if (_vrPlatformHelper.vrPlatformSDK == VRPlatformHelper.VRPlatformSDK.OpenVR)
+            {
+                if (_openVRHelper.vrControllerManufacturerName == OpenVRHelper.VRControllerManufacturerName.Valve)
+                {
+                    rotation += new Vector3(-16.3f, 0f, 0f);
+                    position += new Vector3(0f, 0.022f, -0.01f);
+                }
+                else
+                {
+                    rotation += new Vector3(-4.3f, 0f, 0f);
+                    position += new Vector3(0f, -0.008f, 0f);
+                }
+            }
 
-        private static void CreateOrUpdateMirrorCamera(MirrorRendererSO __instance)
-        {
-            Camera mirrorCamera = new Traverse(__instance).Field<Camera>("_mirrorCamera").Value;
+            // mirror across YZ plane for left hand
+            if (use == DeviceUse.LeftHand)
+            {
+                position.x = -position.x;
 
-            mirrorCamera.cullingMask |= AvatarLayers.kAllLayersMask;
+                rotation.y = -rotation.y;
+                rotation.z = -rotation.z;
+            }
+
+            return new Pose(position, Quaternion.Euler(rotation));
         }
     }
 }

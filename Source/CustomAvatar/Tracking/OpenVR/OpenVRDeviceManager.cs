@@ -88,8 +88,13 @@ namespace CustomAvatar.Tracking.OpenVR
 
                 if (_trackingResults[i] != _poses[i].eTrackingResult)
                 {
-                    _logger.Info($"Device {i} changed tracking result from '{_trackingResults[i]}' to '{_poses[i].eTrackingResult}'");
+                    if (_trackingResults[i] != 0)
+                    {
+                        _logger.Info($"Device {i} changed tracking result from '{_trackingResults[i]}' to '{_poses[i].eTrackingResult}'");
+                    }
+
                     _trackingResults[i] = _poses[i].eTrackingResult;
+                    deviceChanged = true;
                 }
             }
 
@@ -116,6 +121,8 @@ namespace CustomAvatar.Tracking.OpenVR
                 string serialNumber = _openVRFacade.GetStringTrackedDeviceProperty(deviceIndex, ETrackedDeviceProperty.Prop_SerialNumber_String);
                 string role         = _openVRFacade.GetStringTrackedDeviceProperty(deviceIndex, ETrackedDeviceProperty.Prop_ControllerType_String);
 
+                ETrackedDeviceClass deviceClass = _openVRFacade.GetTrackedDeviceClass(deviceIndex);
+
                 if (_connectedDevices[deviceIndex] != connected)
                 {
                     if (connected)
@@ -128,6 +135,8 @@ namespace CustomAvatar.Tracking.OpenVR
                     }
                 }
 
+                _logger.Trace($"Device {deviceIndex} has class '{deviceClass}' and role '{role}'");
+
                 if (_roles[deviceIndex] != null && _roles[deviceIndex] != role)
                 {
                     _logger.Info($"Device {deviceIndex} changed roles from '{_roles[deviceIndex]}' to '{role}'");
@@ -137,12 +146,6 @@ namespace CustomAvatar.Tracking.OpenVR
                 _roles[deviceIndex] = role;
 
                 if (!connected) continue;
-
-                _logger.Trace($"Device {deviceIndex} has role '{role}'");
-
-                ETrackedDeviceClass deviceClass = (ETrackedDeviceClass) _openVRFacade.GetInt32TrackedDeviceProperty(deviceIndex, ETrackedDeviceProperty.Prop_DeviceClass_Int32);
-
-                _logger.Trace($"Device {deviceIndex} has class '{deviceClass}'");
 
                 switch (deviceClass)
                 {

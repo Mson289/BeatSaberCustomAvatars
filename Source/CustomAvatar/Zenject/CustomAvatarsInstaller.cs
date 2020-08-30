@@ -20,6 +20,7 @@ using CustomAvatar.Configuration;
 using CustomAvatar.Lighting;
 using CustomAvatar.Logging;
 using CustomAvatar.StereoRendering;
+using CustomAvatar.Tracking;
 using CustomAvatar.Tracking.OpenVR;
 using CustomAvatar.Tracking.UnityXR;
 using CustomAvatar.Utilities;
@@ -68,12 +69,14 @@ namespace CustomAvatar.Zenject
 
             Container.Bind<StereoRenderManager>().AsSingle();
             Container.Bind<AvatarLoader>().AsSingle();
+            Container.Bind<VRPlayerInput>().AsSingle();
+            Container.Bind<FloorController>().AsSingle();
 
             // helper classes
-            Container.Bind<AvatarTailor>().AsTransient();
             Container.Bind<MirrorHelper>().AsTransient();
             Container.Bind<AvatarSpawner>().AsTransient();
             Container.Bind<GameScenesHelper>().AsTransient();
+            Container.Bind<BeatSaberUtilities>().AsTransient();
 
             // behaviours
             Container.Bind<TwoSidedLightingController>().FromNewComponentOnNewGameObject().NonLazy();

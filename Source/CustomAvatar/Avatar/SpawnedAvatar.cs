@@ -30,12 +30,6 @@ namespace CustomAvatar.Avatar
 		public LoadedAvatar avatar { get; private set; }
 		public IAvatarInput input { get; private set; }
 
-        public float verticalPosition
-        {
-            get => transform.localPosition.y - _initialLocalPosition.y;
-            set => transform.localPosition = new Vector3(transform.localPosition.x, _initialLocalPosition.y + value, transform.localPosition.z);
-        }
-
         public float scale
         {
             get => transform.localScale.y / _initialLocalScale.y;
@@ -48,6 +42,8 @@ namespace CustomAvatar.Avatar
                 _logger.Info("Avatar resized with scale: " + value);
             }
         }
+
+        public float scaledEyeHeight => avatar.eyeHeight * scale;
 
         public Transform head { get; private set; }
         public Transform body { get; private set; }

@@ -24,13 +24,13 @@ namespace CustomAvatar.Avatar
 {
     public class AvatarSpawner
     {
-        private readonly ILogger<AvatarSpawner> _logger;
         private readonly DiContainer _container;
+        private readonly ILogger<AvatarSpawner> _logger;
 
-        internal AvatarSpawner(ILoggerProvider loggerProvider, DiContainer container)
+        internal AvatarSpawner(DiContainer container, ILoggerProvider loggerProvider)
         {
-            _logger = loggerProvider.CreateLogger<AvatarSpawner>();
             _container = container;
+            _logger = loggerProvider.CreateLogger<AvatarSpawner>();
         }
 
         public SpawnedAvatar SpawnAvatar(LoadedAvatar avatar, IAvatarInput input, Transform parent = null)
